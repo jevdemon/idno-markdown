@@ -69,7 +69,7 @@ Each uncached conversion makes one extra request to the site, so `md.php` limits
 - PHP with the `curl`, `dom`, `simplexml` and `mbstring` extensions
 - Post URLs in Idno's usual `/YYYY/post-slug` form
 
-Tested with Known 1.6.4 (build 2026022801), PHP 8.3 and Apache 2.4 (cPanel)
+Tested with PHP 8.3 on Apache 2.4 (cPanel).
 
 ## Installation
 
@@ -168,7 +168,6 @@ if (!defined('IDNO_NOMENTION')) define('IDNO_NOMENTION', true);
 ```
 
 The trade-off: sites you link to are no longer notified. Receiving webmentions is not affected.
-
 Ideally Known could send webmentions in the background instead of real-time while you wait. I've personally turned off webmentions due to poor performance when adding or updating a blog entry.
 
 ## Files
@@ -182,4 +181,4 @@ Ideally Known could send webmentions in the background instead of real-time whil
 
 ## License
 
-Apache 2.0.
+Apache 2.0
