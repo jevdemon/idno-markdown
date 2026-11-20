@@ -1,0 +1,17 @@
+    # Markdown versions of posts (md.php)
+    # Paste inside <IfModule mod_rewrite.c>, right after "RewriteEngine on",
+    # above Idno's own rules. Change /blog/md.php to /md.php if Idno is at your domain root.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^([0-9]{4}/[^/]+)\.md$ /blog/md.php?path=/$1 [L]
+
+    RewriteCond %{QUERY_STRING} (^|&)format=markdown(&|$)
+    RewriteRule ^([0-9]{4}/[^/]+)/?$ /blog/md.php?path=/$1 [L]
+
+    RewriteCond %{HTTP:Accept} text/markdown [NC]
+    RewriteCond %{QUERY_STRING} !(^|&)_t=
+    RewriteRule ^([0-9]{4}/[^/]+)/?$ /blog/md.php?path=/$1&via=accept [L]
+
+# Paste below the closing </IfModule> of the rewrite block:
+<IfModule mod_headers.c>
+    Header merge Vary Accept
+</IfModule>
