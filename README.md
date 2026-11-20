@@ -69,7 +69,7 @@ Each uncached conversion makes one extra request to the site, so `md.php` limits
 - PHP with the `curl`, `dom`, `simplexml` and `mbstring` extensions
 - Post URLs in Idno's usual `/YYYY/post-slug` form
 
-Tested with PHP 8.3 on Apache 2.4 (cPanel).
+Tested with Known 1.6.4 (build 2026022801), PHP 8.3 and Apache 2.4 (cPanel).
 
 ## Installation
 
@@ -181,4 +181,4 @@ Ideally Known could send webmentions in the background instead of real-time whil
 
 ## License
 
-Apache 2.0
+Apache License 2.0, the same license as Idno. See [LICENSE](LICENSE)
