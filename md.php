@@ -1,7 +1,7 @@
 <?php
-// md.php: serves an Idno post as Markdown (for Markdown browsers such as BonBon, AI agents, etc.).
-// Reached through .htaccess rewrites: /YYYY/slug.md, ?format=markdown, or Accept: text/markdown.
-// It reads the post's own RSS output (post URL + ?_t=rss), so it needs no changes to Idno itself.
+// md.php: serves Idno posts, and the home page, as Markdown (for Markdown browsers such as BonBon, AI agents, etc.).
+// Reached through .htaccess rewrites: /YYYY/slug.md, /index.md, ?format=markdown, or Accept: text/markdown.
+// It reads the site's own RSS output (post URL + ?_t=rss, or the main feed), so it needs no changes to Idno itself.
 // See README.md for installation. Edit the three settings below for your site.
 
 $siteBase   = 'https://example.com/blog';   // your Idno site's address, no trailing slash
@@ -11,6 +11,7 @@ $noteLength = 160;                          // front-matter description length
 $addH1      = true;                         // also put the title as "# Title" at the top of the body
 $cacheDir   = __DIR__ . '/gfx/md-cache';
 $cacheTtl   = 3600;
+$indexFeed  = $siteBase . '/content/all?_t=rss';   // feed used for the home page (index) version
 $notFoundTtl = 600;                         // remember "post not found" for 10 minutes
 $maxBuilds   = 2;                           // at most this many posts converted at the same time
 $perIpLimit  = 20;                          // conversions allowed per visitor IP per minute (cached hits don't count)
@@ -202,7 +203,9 @@ function md_fail($code, $msg) {
 
 $path = isset($_GET['path']) ? $_GET['path'] : '';
 $path = preg_replace('/\.md$/', '', $path);
-if (!preg_match('#^/[A-Za-z0-9/_\-.%]+$#', $path) || strpos($path, '..') !== false) md_fail(400, 'Bad path.');
+$isIndex = ($path === '/' || $path === '');   // the home page: a list of recent posts
+if ($isIndex) $path = '/';
+elseif (!preg_match('#^/[A-Za-z0-9/_\-.%]+$#', $path) || strpos($path, '..') !== false) md_fail(400, 'Bad path.');
 
 $pageUrl   = $siteBase . $path;
 $cacheFile = $cacheDir . '/' . md5($path) . '.md';
@@ -284,21 +287,55 @@ if ($serveHtml) {
     exit;
 }
 
-$ch = curl_init($pageUrl . '?_t=rss');
+$ch = curl_init($isIndex ? $indexFeed : $pageUrl . '?_t=rss');
 curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_TIMEOUT => 10, CURLOPT_USERAGENT => 'md.php builder']);
 $raw = curl_exec($ch);
 $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 $item = null;
+$xml = null;
 if ($raw !== false && $code === 200) {
     libxml_use_internal_errors(true);
     $xml = simplexml_load_string($raw);
     if ($xml && isset($xml->channel->item[0])) $item = $xml->channel->item[0];
 }
 
+// Home page: the site's title and description, then each recent post with a link to its Markdown version
+// and the day's entry headings (<h3>s) under it.
+if ($isIndex && $item) {
+    $siteTitle = trim(preg_replace('/\s+/u', ' ', (string)$xml->channel->title));
+    $siteDesc  = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string)$xml->channel->description), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+    $out  = "---\n";
+    $out .= 'title: ' . md_yaml($siteTitle) . "\n";
+    $out .= 'author: ' . md_yaml($author) . "\n";
+    if ($siteDesc !== '') $out .= 'description: ' . md_yaml($siteDesc) . "\n";
+    $out .= 'link: ' . md_yaml($siteBase . '/') . "\n";
+    $out .= "---\n\n";
+    if ($siteTitle !== '') $out .= '# ' . md_esc($siteTitle) . "\n\n";
+    if ($siteDesc !== '') $out .= '> ' . md_esc($siteDesc) . "\n\n";
+    $out .= "## Recent posts\n\n";
+    foreach ($xml->channel->item as $it) {
+        $t = trim(preg_replace('/\s+/u', ' ', (string)$it->title));
+        $l = trim((string)$it->link);
+        if ($l === '') continue;
+        if ($t === '') $t = $l;
+        if (preg_match('#/[0-9]{4}/[^/?\#]+$#', $l)) $l .= '.md';   // posts get their Markdown version
+        $d = strtotime((string)$it->pubDate);
+        $out .= '- [' . md_esc($t) . '](' . md_url($l) . ')' . ($d ? ' (' . date('Y-m-d', $d) . ')' : '') . "\n";
+        if (preg_match_all('#<h3\b[^>]*>(.*?)</h3>#is', (string)$it->description, $hm)) {
+            foreach ($hm[1] as $h) {
+                $h = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($h), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+                if ($h !== '') $out .= '  - ' . md_esc($h) . "\n";
+            }
+        }
+    }
+    @file_put_contents($cacheFile, $out, LOCK_EX);
+    md_send($out, $pageUrl);
+}
+
 if (!$item) {
-    if ($code === 404) {
+    if ($code === 404 && !$isIndex) {
         @touch($missFile);
         md_fail(404, 'Not found.');
     }

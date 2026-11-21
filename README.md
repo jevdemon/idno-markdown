@@ -10,6 +10,8 @@ Any post can be fetched as Markdown three ways:
 | Add `?format=markdown` | `https://example.com/blog/2026/my-post?format=markdown` |
 | Send `Accept: text/markdown` | `curl -H "Accept: text/markdown" https://example.com/blog/2026/my-post` |
 
+The home page works the same way (`/index.md`, `/?format=markdown`, or `Accept: text/markdown` on `/`) and returns a list of recent posts, each linking to its Markdown version.
+
 Browsers and other clients that ask for HTML keep getting the normal page.
 
 ## Why
@@ -37,15 +39,36 @@ Text with a [link](https://example.com/) and **bold** words.
 ![photo.jpg](https://example.com/blog/gfx/post-photos/photo.jpg)
 ```
 
+The home page version lists recent posts instead, with each day's `<h3>` entry headings underneath:
+
+```markdown
+---
+title: "Your Blog"
+author: "Your Name"
+description: "Your blog's description from its feed."
+link: "https://example.com/blog/"
+---
+
+# Your Blog
+
+> Your blog's description from its feed.
+
+## Recent posts
+
+- [November 11, 2026](https://example.com/blog/2026/november-11-2026.md) (2026-11-11)
+  - First entry of the day
+  - Second entry of the day
+```
+
 The front matter uses field names from RSS 2.0, following the Markdown web conventions. Responses are sent as `text/markdown; charset=utf-8` with `Vary: Accept` and a `Link: <post URL>; rel="canonical"` header pointing to the HTML page.
 
 ## How it works
 
 1. Rewrite rules in `.htaccess` send Markdown requests to `md.php` instead of Idno.
-2. `md.php` fetches the post's own RSS output (`<post URL>?_t=rss`), which contains the full post HTML.
+2. `md.php` fetches the post's own RSS output (`<post URL>?_t=rss`), which contains the full post HTML. For the home page it fetches the main feed (`/content/all?_t=rss`) instead.
 3. It converts the HTML to Markdown element by element: headings, paragraphs, links, bold, italic, strikethrough, images, lists (including nested and numbered), blockquotes, inline code, code blocks, tables and line breaks. Relative image and link URLs are made absolute.
 4. It adds the front matter and returns the result.
-5. The result is cached per post. A small Idno plugin, **MarkdownCache**, clears the cache whenever a post is created, edited or deleted, so edits show up immediately.
+5. The result is cached per page. A small Idno plugin, **MarkdownCache**, clears the cache whenever a post is created, edited or deleted, so edits show up immediately.
 
 Idno itself is not modified. Posts are still written and stored as HTML.
 
@@ -91,9 +114,9 @@ $author     = 'Your Name';                  // used in the front matter
 
 Open the `.htaccess` file in your Idno folder. Paste the rules from `htaccess-rules.txt` inside the `<IfModule mod_rewrite.c>` block, right after `RewriteEngine on`. They must come before Idno's own catch-all rule, which sends everything to `index.php`. Then paste the `mod_headers` block after that `</IfModule>`.
 
-If Idno is at your domain root, change `/blog/md.php` to `/md.php` in all three rules.
+If Idno is at your domain root, change `/blog/md.php` to `/md.php` in all of the rules.
 
-The third rule ends with `&via=accept`. Keep it: it tells `md.php` the request came in through the `Accept` header, so it should check q-values.
+The two rules under `Accept` conditions end with `&via=accept`. Keep it: it tells `md.php` the request came in through the `Accept` header, so it should check q-values.
 
 ### 3. Install the MarkdownCache plugin
 
@@ -122,6 +145,10 @@ curl -s -o /dev/null -w "%{content_type}\n" -H "Accept: text/html, text/markdown
 
 # Should print 404
 curl -s -o /dev/null -w "%{http_code}\n" https://example.com/blog/2026/no-such-post.md
+
+# Home page: the first should show the list of recent posts, the second should print text/markdown
+curl -s https://example.com/blog/index.md | head -15
+curl -s -o /dev/null -w "%{content_type}\n" -H "Accept: text/markdown" https://example.com/blog/
 ```
 
 Then edit a post and reload its `.md` URL. The change should appear immediately.
@@ -139,6 +166,7 @@ All settings are at the top of `md.php`.
 | `$author` | — | Author name for the front matter |
 | `$noteLength` | `160` | Maximum length of the front matter `description` |
 | `$addH1` | `true` | Also put the title as `# Title` at the top of the body. Set to `false` if your reader shows the title twice |
+| `$indexFeed` | `$siteBase/content/all?_t=rss` | Feed used to build the home page version |
 | `$cacheDir` | `gfx/md-cache` | Where cached files go |
 | `$cacheTtl` | `3600` | Seconds a cached copy is used. With the plugin enabled, edits clear the cache anyway, so this can be raised (for example `86400`) |
 | `$notFoundTtl` | `600` | Seconds a "not found" result is remembered |
@@ -150,6 +178,7 @@ All settings are at the top of `md.php`.
 - **Embeds become links.** Iframes, video and audio come out as a link to their source, since Markdown can't embed them.
 - **Layout is dropped.** Inline styles, classes, image sizes and floats have no Markdown equivalent.
 - **It's a conversion.** Posts are stored as HTML, so the Markdown is generated from that HTML, not from an original Markdown source.
+- **The home page lists posts only.** Sidebars, widgets and other theme content aren't in the feed, so they don't appear in the Markdown version.
 - **No previous/next links.** The front matter doesn't include `urlPrev` / `urlNext` yet.
 - **Special characters are escaped.** `*`, `_`, `[`, `]`, `` ` `` and `<` in normal text appear with a backslash in the raw file. They render correctly.
 
