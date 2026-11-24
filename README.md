@@ -197,7 +197,8 @@ if (!defined('IDNO_NOMENTION')) define('IDNO_NOMENTION', true);
 ```
 
 The trade-off: sites you link to are no longer notified. Receiving webmentions is not affected.
-Ideally Known could send webmentions in the background instead of real-time while you wait. I've personally turned off webmentions due to poor performance when adding or updating a blog entry.
+Ideally Known could send webmentions in the background instead of real-time while you wait. 
+Note: I have an [async implementation of webmentions for Known here](https://github.com/jevdemon/idno-async-webmentions) if anyone is interested. It works so well that I've re-enabled webmentions on my blog.
 
 ## Files
 
