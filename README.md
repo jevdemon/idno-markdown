@@ -1,6 +1,6 @@
-# Markdown output for Idno
+# Markdown output for Known (Idno)
 
-Serve every public Idno post as Markdown, alongside the normal HTML page.
+Serve every public Known post as Markdown, alongside the normal HTML page.
 
 Any post can be fetched as Markdown three ways:
 
